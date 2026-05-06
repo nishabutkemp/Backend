@@ -45,6 +45,10 @@ GROUP_RULES: list[tuple[tuple[str, ...], GroupTemplate]] = [
 
 
 def classify_ticket(text: str) -> GroupTemplate:
+    return classify_ticket_fallback(text)
+
+
+def classify_ticket_fallback(text: str) -> GroupTemplate:
     haystack = text.lower()
     for keywords, template in GROUP_RULES:
         if any(keyword in haystack for keyword in keywords):
@@ -75,6 +79,10 @@ def generate_title(title: str | None, description: str) -> str:
 
 
 def enhance_text(original_text: str) -> tuple[str, str]:
+    return enhance_text_fallback(original_text)
+
+
+def enhance_text_fallback(original_text: str) -> tuple[str, str]:
     display_prefix = "[AI-enhanced]"
     normalized = " ".join(original_text.split())
     if normalized and normalized[-1] not in ".!?":

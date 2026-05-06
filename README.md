@@ -33,6 +33,25 @@ Demo credentials:
 - Employee: `employee@pulse.local` / `employee123`
 - Manager: `manager@pulse.local` / `manager123`
 
+## AI Integration
+
+Backend supports Yandex Cloud ML for:
+
+- ticket description enhancement
+- ticket group classification
+
+Configure in `.env`:
+
+```bash
+YANDEX_FOLDER_ID=your_folder_id
+YANDEX_AUTH_TOKEN=your_iam_or_api_token
+YANDEX_GPT_MODEL=yandexgpt-lite
+YANDEX_GPT_TEMPERATURE=0.3
+YANDEX_GPT_MAX_TOKENS=2000
+```
+
+If Yandex credentials are missing or the provider call fails, the backend falls back to the built-in deterministic MVP mock.
+
 ## Run with Docker
 
 ```bash
@@ -66,4 +85,5 @@ curl -X POST http://localhost:8000/v1/auth/login \
 - Списки поддерживают `page`, `pageSize`, `status`, `query`.
 - `status` передаётся как CSV, например `open,in_review`.
 - AI enhancement и AI grouping реализованы как deterministic MVP mock.
+- При наличии Yandex Cloud ML включается реальный AI provider, иначе остаётся fallback/mock.
 - Инициализация БД выполняется командой `python -m app.scripts.init_db` перед запуском API.

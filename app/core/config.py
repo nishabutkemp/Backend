@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     jwt_secret_key: str = "change-me-for-local-dev"
     jwt_algorithm: str = "HS256"
     jwt_expires_minutes: int = 60
+    yandex_folder_id: str | None = None
+    yandex_auth_token: str | None = None
+    yandex_gpt_model: str = "yandexgpt-lite"
+    yandex_gpt_temperature: float = 0.3
+    yandex_gpt_max_tokens: int = 2000
 
 
 @lru_cache

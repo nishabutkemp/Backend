@@ -31,7 +31,8 @@ from app.schemas.api import (
     User,
     UserRole,
 )
-from app.services.grouping import classify_ticket, enhance_text, generate_title
+from app.services.ai import get_ai_service
+from app.services.grouping import generate_title
 from app.services.serializers import to_analytics_summary, to_group_list_response, to_ticket, to_ticket_group, to_tickets_list_response, to_user
 
 
@@ -145,7 +146,7 @@ def enhance_ticket_description(
     payload: EnhanceTicketDescriptionRequest,
     _: AuthenticatedUser = Depends(require_role(UserRole.employee)),
 ) -> EnhanceTicketDescriptionResponse:
-    display_prefix, enhanced_text = enhance_text(payload.originalText)
+    display_prefix, enhanced_text = get_ai_service().enhance_ticket_description(payload.originalText)
     return EnhanceTicketDescriptionResponse(
         originalText=payload.originalText,
         enhancedText=enhanced_text,
@@ -162,7 +163,7 @@ def create_ticket(
 ) -> Ticket:
     now = utcnow()
     author = get_user_model(db, current_user)
-    template = classify_ticket(f"{payload.title or ''}\n{payload.description}")
+    template = get_ai_service().classify_ticket(f"{payload.title or ''}\n{payload.description}")
 
     group = (
         db.query(TicketGroupModel)
