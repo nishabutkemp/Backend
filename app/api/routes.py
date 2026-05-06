@@ -32,7 +32,7 @@ from app.schemas.api import (
     UserRole,
 )
 from app.services.ai import get_ai_service
-from app.services.grouping import generate_title
+from app.services.grouping import classify_ticket_fallback, generate_title
 from app.services.serializers import to_analytics_summary, to_group_list_response, to_ticket, to_ticket_group, to_tickets_list_response, to_user
 
 
@@ -163,12 +163,23 @@ def create_ticket(
 ) -> Ticket:
     now = utcnow()
     author = get_user_model(db, current_user)
-    template = get_ai_service().classify_ticket(f"{payload.title or ''}\n{payload.description}")
+    source_text = f"{payload.title or ''}\n{payload.description}"
+    template = get_ai_service().classify_ticket(source_text)
+    fallback_template = classify_ticket_fallback(source_text)
+    candidate_keys = {template.key, fallback_template.key}
+    candidate_title_values = {template.title, fallback_template.title}
+    candidate_titles = {template.title.lower(), fallback_template.title.lower()}
 
     group = (
         db.query(TicketGroupModel)
         .options(joinedload(TicketGroupModel.tickets).joinedload(TicketModel.author))
-        .filter(TicketGroupModel.classifier_key == template.key)
+        .filter(
+            or_(
+                TicketGroupModel.classifier_key.in_(candidate_keys),
+                TicketGroupModel.title.in_(candidate_title_values),
+                func.lower(TicketGroupModel.title).in_(candidate_titles),
+            )
+        )
         .one_or_none()
     )
     if not group:

@@ -1,4 +1,5 @@
 import json
+import logging
 from functools import lru_cache
 
 from app.core.config import get_settings
@@ -6,6 +7,7 @@ from app.services.grouping import (
     GroupTemplate,
     classify_ticket_fallback,
     enhance_text_fallback,
+    normalize_group_key,
 )
 
 try:
@@ -15,6 +17,7 @@ except ImportError:  # pragma: no cover
 
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 class AIService:
@@ -23,7 +26,10 @@ class AIService:
         self._model = None
 
     def is_available(self) -> bool:
-        return bool(YCloudML and settings.yandex_folder_id and settings.yandex_auth_token)
+        available = bool(YCloudML and settings.yandex_folder_id and settings.yandex_auth_token)
+        if not available:
+            logger.info("Yandex AI provider disabled: missing SDK or YANDEX_FOLDER_ID / YANDEX_AUTH_TOKEN")
+        return available
 
     def _get_model(self):
         if not self.is_available():
@@ -50,6 +56,7 @@ class AIService:
                 ]
             )
         except Exception:
+            logger.exception("Yandex AI request failed, using fallback")
             return None
         text = getattr(result, "text", None)
         return text.strip() if isinstance(text, str) and text.strip() else None
@@ -57,11 +64,15 @@ class AIService:
     def enhance_ticket_description(self, original_text: str) -> tuple[str, str]:
         display_prefix = "[AI-enhanced]"
         system_prompt = (
-            "Ты помощник поддержки сотрудников. Улучши описание тикета: исправь грамматику, "
-            "убери лишнюю разговорность, сохрани смысл. Верни только итоговый текст на том же языке."
+            "Ты помощник поддержки сотрудников. Перепиши описание тикета в нейтральном, "
+            "безличном и стандартизированном стиле: исправь грамматику, убери разговорные обороты, "
+            "эмоциональные формулировки, индивидуальные стилистические особенности автора и любые "
+            "личные маркеры письма. Сохрани только факты, проблему, симптомы и контекст, не меняя смысл. "
+            "Верни только итоговый текст на том же языке."
         )
         response = self._run(system_prompt=system_prompt, user_prompt=original_text)
         if not response:
+            logger.info("Using fallback enhancement for ticket description")
             return enhance_text_fallback(original_text)
         cleaned = " ".join(response.split())
         if cleaned and cleaned[-1] not in ".!?":
@@ -73,31 +84,34 @@ class AIService:
     def classify_ticket(self, text: str) -> GroupTemplate:
         fallback = classify_ticket_fallback(text)
         system_prompt = (
-            "Ты группируешь внутренние employee tickets по фиксированным категориям. "
-            "Выбери categoryKey только из списка: corporate_email, vpn_access, monitor_request, onboarding, other. "
+            "Ты группируешь внутренние employee tickets в смысловые кластеры. "
+            "Сгенерируй устойчивый semantic key для группы, короткий и в snake_case на латинице. "
+            "Для похожих проблем возвращай один и тот же key. "
             "Верни только JSON объекта вида "
-            '{"categoryKey":"vpn_access","title":"...","summary":"..."} . '
+            '{"clusterKey":"vpn_access_disconnects","title":"...","summary":"..."} . '
             "title должен быть коротким названием группы на русском. "
-            "summary должен быть кратким AI summary на английском. "
-            "Если категория не подходит, используй other."
+            "summary должен быть кратким AI summary на английском."
         )
         response = self._run(system_prompt=system_prompt, user_prompt=text)
         if not response:
+            logger.info("Using fallback classification for ticket grouping")
             return fallback
         try:
             payload = json.loads(response)
         except json.JSONDecodeError:
+            logger.warning("Yandex AI returned non-JSON classification payload, using fallback")
             return fallback
 
-        category_key = payload.get("categoryKey")
+        category_key = payload.get("clusterKey") or payload.get("categoryKey")
         title = payload.get("title")
         summary = payload.get("summary")
-        if category_key in {"corporate_email", "vpn_access", "monitor_request", "onboarding"}:
+        if isinstance(category_key, str) and category_key.strip():
             return GroupTemplate(
-                key=category_key,
+                key=normalize_group_key(category_key),
                 title=title.strip() if isinstance(title, str) and title.strip() else fallback.title,
                 summary=summary.strip() if isinstance(summary, str) and summary.strip() else fallback.summary,
             )
+        logger.info("Yandex AI returned invalid cluster key '%s', using fallback", category_key)
         return fallback
 
 
