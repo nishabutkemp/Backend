@@ -7,6 +7,7 @@ from app.services.grouping import (
     GroupTemplate,
     classify_ticket_fallback,
     enhance_text_fallback,
+    generate_title,
     normalize_group_key,
 )
 
@@ -80,6 +81,19 @@ class AIService:
         if not cleaned.startswith(display_prefix):
             cleaned = f"{display_prefix} {cleaned}"
         return display_prefix, cleaned
+
+    def generate_ticket_title(self, description: str) -> str:
+        system_prompt = (
+            "Ты помощник поддержки сотрудников. Сгенерируй короткий, нейтральный и информативный "
+            "заголовок тикета по описанию проблемы. Не добавляй кавычки, префиксы, номера или пояснения. "
+            "Ответ должен быть одной строкой на том же языке, не длиннее 200 символов."
+        )
+        response = self._run(system_prompt=system_prompt, user_prompt=description)
+        if not response:
+            logger.info("Using fallback title generation for ticket")
+            return generate_title(None, description)
+        title = " ".join(response.split())
+        return title[:200].rstrip() or generate_title(None, description)
 
     def classify_ticket(self, text: str) -> GroupTemplate:
         fallback = classify_ticket_fallback(text)

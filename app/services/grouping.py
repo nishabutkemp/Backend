@@ -112,9 +112,7 @@ def classify_ticket_fallback(text: str) -> GroupTemplate:
 
 def build_excerpt(text: str, limit: int = 90) -> str:
     normalized = " ".join(text.split())
-    if len(normalized) <= limit:
-        return normalized
-    return normalized[: limit - 3].rstrip() + "..."
+    return normalized
 
 
 def generate_title(title: str | None, description: str) -> str:

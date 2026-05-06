@@ -32,7 +32,7 @@ from app.schemas.api import (
     UserRole,
 )
 from app.services.ai import get_ai_service
-from app.services.grouping import classify_ticket_fallback, generate_title
+from app.services.grouping import classify_ticket_fallback
 from app.services.serializers import to_analytics_summary, to_group_list_response, to_ticket, to_ticket_group, to_tickets_list_response, to_user
 
 
@@ -163,7 +163,8 @@ def create_ticket(
 ) -> Ticket:
     now = utcnow()
     author = get_user_model(db, current_user)
-    source_text = f"{payload.title or ''}\n{payload.description}"
+    generated_title = get_ai_service().generate_ticket_title(payload.description)
+    source_text = f"{generated_title}\n{payload.description}"
     template = get_ai_service().classify_ticket(source_text)
     fallback_template = classify_ticket_fallback(source_text)
     candidate_keys = {template.key, fallback_template.key}
@@ -200,7 +201,7 @@ def create_ticket(
     ticket = TicketModel(
         id=new_id("tkt"),
         number=next_ticket_number(db),
-        title=generate_title(payload.title, payload.description),
+        title=generated_title,
         description=payload.description,
         original_description=payload.originalDescription,
         ai_enhanced=payload.aiEnhanced,
