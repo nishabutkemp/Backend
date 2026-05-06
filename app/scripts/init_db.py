@@ -9,7 +9,7 @@ from app.core.config import get_settings
 from app.db.models import TicketGroupModel, TicketHistoryEventModel, TicketModel, UserModel
 from app.db.session import Base, SessionLocal, engine
 from app.schemas.api import TicketStatus
-from app.services.grouping import classify_ticket, generate_title
+from app.services.grouping import classify_ticket, generate_title, normalize_group_key
 
 
 settings = get_settings()
@@ -124,25 +124,25 @@ def ensure_group(session, key: str, now: datetime) -> TicketGroupModel:
         return group
 
     templates = {
-        "corporate_email": (
+        normalize_group_key("Ошибка входа в корпоративную почту после смены пароля"): (
             "Ошибка входа в корпоративную почту после смены пароля",
             "Several employees report losing access to corporate email after password changes or Outlook re-authentication.",
             "Проверяем проблему с доступом после смены пароля. Вернёмся с обновлением сегодня до конца дня.",
             TicketStatus.in_review.value,
         ),
-        "monitor_request": (
+        normalize_group_key("Запрос на дополнительный монитор"): (
             "Запрос на дополнительный монитор",
             "Employees request additional monitor equipment to improve their daily workstation setup.",
             None,
             TicketStatus.open.value,
         ),
-        "vpn_access": (
+        normalize_group_key("Проблемы с доступом к VPN"): (
             "Проблемы с доступом к VPN",
             "Multiple employees report unstable VPN access that interrupts work with internal tools.",
             "Проверяем синхронизацию доступа после смены пароля. Обновим статус после проверки с IT.",
             TicketStatus.in_review.value,
         ),
-        "onboarding": (
+        normalize_group_key("Вопросы по онбордингу новых сотрудников"): (
             "Вопросы по онбордингу новых сотрудников",
             "Employees share recurring onboarding issues and suggestions for improving the new hire experience.",
             None,
