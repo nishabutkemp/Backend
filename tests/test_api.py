@@ -142,3 +142,22 @@ def test_dev_token_endpoints(client):
     )
     assert manager_me.status_code == 200
     assert manager_me.json()["role"] == "manager"
+
+
+def test_group_title_is_not_concatenated_with_ticket_title(client, employee_headers, manager_headers):
+    created = client.post(
+        "/v1/tickets",
+        headers=employee_headers,
+        json={
+            "title": "Пользовательский заголовок будет проигнорирован",
+            "description": "Привпетоплуа п тшаывоипад",
+            "aiEnhanced": False,
+        },
+    )
+    assert created.status_code == 201
+    group_id = created.json()["groupId"]
+
+    groups = client.get("/v1/manager/ticket-groups", headers=manager_headers)
+    assert groups.status_code == 200
+    group = next(item for item in groups.json()["items"] if item["id"] == group_id)
+    assert group["title"] != f"{created.json()['title']} {created.json()['description']}"

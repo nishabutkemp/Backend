@@ -187,9 +187,9 @@ def create_ticket(
     now = utcnow()
     author = get_user_model(db, current_user)
     generated_title = get_ai_service().generate_ticket_title(payload.description)
-    source_text = f"{generated_title}\n{payload.description}"
-    template = get_ai_service().classify_ticket(source_text)
-    fallback_template = classify_ticket_fallback(source_text)
+    grouping_text = payload.description
+    template = get_ai_service().classify_ticket(grouping_text)
+    fallback_template = classify_ticket_fallback(grouping_text)
     candidate_keys = {template.key, fallback_template.key}
     candidate_title_values = {template.title, fallback_template.title}
     candidate_titles = {template.title.lower(), fallback_template.title.lower()}
