@@ -62,6 +62,21 @@ docker compose up --build
 
 API будет доступно на `http://localhost:8000`, Swagger UI на `http://localhost:8000/docs`.
 
+## Reset DB
+
+Чтобы полностью сбросить БД в дефолтное demo-состояние, запусти:
+
+```bash
+cd backend
+sh scripts/reset_db.sh
+```
+
+Скрипт:
+
+- удаляет прикладные таблицы
+- пересоздаёт схему
+- заново сидирует test/demo accounts, ticket groups и demo tickets
+
 Получение токена:
 
 ```bash
