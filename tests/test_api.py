@@ -1,3 +1,6 @@
+from app.services.ai import AIService
+
+
 def test_employee_ticket_flow_and_rbac(client, employee_headers):
     login = client.post(
         "/v1/auth/login",
@@ -161,3 +164,13 @@ def test_group_title_is_not_concatenated_with_ticket_title(client, employee_head
     assert groups.status_code == 200
     group = next(item for item in groups.json()["items"] if item["id"] == group_id)
     assert group["title"] != f"{created.json()['title']} {created.json()['description']}"
+
+
+def test_classification_falls_back_when_ai_returns_null_strings():
+    service = AIService()
+    service._run = lambda **kwargs: '{"clusterKey":"random_issue","title":"null","summary":"null"}'
+
+    group = service.classify_ticket("VPN отключается несколько раз в день")
+
+    assert group.title == "Проблемы с доступом к VPN"
+    assert group.summary == "Multiple employees report unstable VPN access that interrupts work with internal tools."

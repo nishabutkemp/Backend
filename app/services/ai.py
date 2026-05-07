@@ -21,6 +21,17 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
+def _clean_ai_text(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    cleaned = " ".join(value.split()).strip()
+    if not cleaned:
+        return None
+    if cleaned.lower() in {"null", "none", "undefined", "n/a", "na", "-"}:
+        return None
+    return cleaned
+
+
 class AIService:
     def __init__(self) -> None:
         self._sdk = None
@@ -92,7 +103,10 @@ class AIService:
         if not response:
             logger.info("Using fallback title generation for ticket")
             return generate_title(None, description)
-        title = " ".join(response.split())
+        title = _clean_ai_text(response)
+        if not title:
+            logger.info("Yandex AI returned invalid title payload, using fallback title generation")
+            return generate_title(None, description)
         return title[:200].rstrip() or generate_title(None, description)
 
     def classify_ticket(self, text: str) -> GroupTemplate:
@@ -117,13 +131,13 @@ class AIService:
             return fallback
 
         category_key = payload.get("clusterKey") or payload.get("categoryKey")
-        title = payload.get("title")
-        summary = payload.get("summary")
+        title = _clean_ai_text(payload.get("title"))
+        summary = _clean_ai_text(payload.get("summary"))
         if isinstance(category_key, str) and category_key.strip():
             return GroupTemplate(
                 key=normalize_group_key(category_key),
-                title=title.strip() if isinstance(title, str) and title.strip() else fallback.title,
-                summary=summary.strip() if isinstance(summary, str) and summary.strip() else fallback.summary,
+                title=title or fallback.title,
+                summary=summary or fallback.summary,
             )
         logger.info("Yandex AI returned invalid cluster key '%s', using fallback", category_key)
         return fallback
