@@ -141,6 +141,29 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> AuthTokenResp
     )
 
 
+def _issue_dev_token(email: str, db: Session) -> AuthTokenResponse:
+    user = db.query(UserModel).filter(UserModel.email == email).one_or_none()
+    if not user:
+        raise HTTPException(status_code=404)
+    access_token, expires_in = create_access_token(user)
+    return AuthTokenResponse(
+        accessToken=access_token,
+        tokenType="Bearer",
+        expiresIn=expires_in,
+        user=to_user(user),
+    )
+
+
+@router.post("/auth/dev/employee-token", response_model=AuthTokenResponse)
+def get_dev_employee_token(db: Session = Depends(get_db)) -> AuthTokenResponse:
+    return _issue_dev_token("employee@pulse.local", db)
+
+
+@router.post("/auth/dev/manager-token", response_model=AuthTokenResponse)
+def get_dev_manager_token(db: Session = Depends(get_db)) -> AuthTokenResponse:
+    return _issue_dev_token("manager@pulse.local", db)
+
+
 @router.post("/ai/enhance-ticket-description", response_model=EnhanceTicketDescriptionResponse)
 def enhance_ticket_description(
     payload: EnhanceTicketDescriptionRequest,

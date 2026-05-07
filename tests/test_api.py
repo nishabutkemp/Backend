@@ -118,3 +118,27 @@ def test_auth_errors(client):
     assert unauthorized.status_code == 401
     body = unauthorized.json()
     assert body["error"]["code"] == "unauthorized"
+
+
+def test_dev_token_endpoints(client):
+    employee = client.post("/v1/auth/dev/employee-token")
+    assert employee.status_code == 200
+    employee_body = employee.json()
+    assert employee_body["user"]["role"] == "employee"
+    employee_me = client.get(
+        "/v1/me",
+        headers={"Authorization": f"Bearer {employee_body['accessToken']}"},
+    )
+    assert employee_me.status_code == 200
+    assert employee_me.json()["role"] == "employee"
+
+    manager = client.post("/v1/auth/dev/manager-token")
+    assert manager.status_code == 200
+    manager_body = manager.json()
+    assert manager_body["user"]["role"] == "manager"
+    manager_me = client.get(
+        "/v1/me",
+        headers={"Authorization": f"Bearer {manager_body['accessToken']}"},
+    )
+    assert manager_me.status_code == 200
+    assert manager_me.json()["role"] == "manager"
